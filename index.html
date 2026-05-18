@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NAS Validation 2026</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* Exact Status Colors */
+.status-encoded { color: #15803d; font-weight: 600; } 
+.status-not-encoded { color: #b91c1c; font-weight: 600; } 
+.status-validated { color: #1d4ed8; font-weight: 600; } 
+.status-not-validated { color: #a16207; font-weight: 600; } 
+.chart-wrapper { position: relative; height: 250px; width: 100%; }
+
+/* Scrollbar styling for table */
+.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-800 p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto relative">
+        
+        <header class="mb-6 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">NAS Validation Dashboard 2026</h1>
+                <p class="text-gray-500 mt-1">Operational Tracking & ECMS Encoding Status</p>
+            </div>
+            
+            <div class="flex flex-col items-start md:items-end">
+                <span id="lastRefresh" class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+                    Last Refresh: --
+                </span>
+                <button onclick="refreshDashboard()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-1.5 px-4 rounded text-sm shadow-sm transition flex items-center gap-2">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Refresh Data
+                </button>
+            </div>
+        </header>
+
+        <div id="errorBanner" class="hidden mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-sm" role="alert">
+            <strong class="font-bold">Error: </strong>
+            <span id="errorMessage">Something went wrong.</span>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4 border border-gray-200 mb-6">
+            <div class="flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-1 w-full">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Municipality</label>
+                    <select id="municipalityFilter" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Municipalities</option>
+                    </select>
+                </div>
+                
+                <div class="flex-1 w-full">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Case Worker</label>
+                    <select id="caseworkerFilter" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Case Workers</option>
+                    </select>
+                </div>
+
+                <div class="flex-1 w-full">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Validation</label>
+                    <select id="validationFilter" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Statuses</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button onclick="applyFilters()" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded text-sm shadow transition">Apply</button>
+                    <button onclick="resetFilters()" class="flex-1 md:flex-none bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded text-sm shadow transition">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-gray-400">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Records</h3>
+                <p id="totalRecords" class="text-2xl font-bold text-gray-900 mt-1">...</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-blue-500">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Validated</h3>
+                <p id="validated" class="text-2xl font-bold text-gray-900 mt-1">...</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-yellow-500">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Not Validated</h3>
+                <p id="notValidated" class="text-2xl font-bold text-gray-900 mt-1">...</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-green-500">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Encoded</h3>
+                <p id="encoded" class="text-2xl font-bold text-gray-900 mt-1">...</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-red-500">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Not Encoded</h3>
+                <p id="notEncoded" class="text-2xl font-bold text-gray-900 mt-1">...</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-indigo-500">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Encoding Rate</h3>
+                <p id="encodingRate" class="text-2xl font-bold text-gray-900 mt-1">...</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 text-center">Validation Overview</h2>
+                    <div class="chart-wrapper"><canvas id="validationChart"></canvas></div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 text-center">Encoding Overview</h2>
+                    <div class="chart-wrapper"><canvas id="encodingChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 relative">
+                
+                <div class="bg-white rounded-lg shadow border border-gray-200 flex flex-col h-[550px]">
+                    <div class="overflow-y-auto overflow-x-auto custom-scrollbar flex-1">
+                        <table class="min-w-full divide-y divide-gray-200 relative">
+                            <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Municipality</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Barangay</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Case Manager</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Validation</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">ECMS Encoding</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="bg-white divide-y divide-gray-100">
+                                <tr><td colspan="5" class="px-6 py-10 text-center text-gray-500 italic">Loading records...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="bg-gray-50 px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <span id="recordCount" class="text-sm font-medium text-gray-600">
+                            Showing 0 filtered records
+                        </span>
+                        
+                        <div class="flex items-center gap-3">
+                            <button id="prevBtn" onclick="prevPage()" disabled class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-1 px-3 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm">Prev</button>
+                            <span id="pageInfo" class="text-sm text-gray-600 font-medium">Page 1</span>
+                            <button id="nextBtn" onclick="nextPage()" disabled class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-1 px-3 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm">Next</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+<script>
+const API_BASE = 'https://script.google.com/macros/s/AKfycbwD1l_CrGXHriNLchD3fgvEj48_dxkGSJAqL02v2zgEKCrAUOE3UgwfRaRGeEHvt4ch_w/exec';
+
+let currentPage = 1;
+let totalPages = 1;
+let currentFilters = {};
+let validationChartInstance = null;
+let encodingChartInstance = null;
+
+function showError(msg) {
+    document.getElementById('errorBanner').classList.remove('hidden');
+    document.getElementById('errorMessage').textContent = msg;
+}
+function hideError() {
+    document.getElementById('errorBanner').classList.add('hidden');
+}
+
+// 5. NEW: Refresh Timestamp Helper
+function updateRefreshTime() {
+    const now = new Date();
+    const formatted = now.toLocaleString('en-PH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+    document.getElementById('lastRefresh').textContent = `Last Refresh: ${formatted}`;
+}
+
+// 6. NEW: Refresh Dashboard Function
+async function refreshDashboard() {
+    try {
+        // Show loading state briefly while refreshing
+        document.getElementById('tableBody').innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-500 italic">Refreshing records...</td></tr>`;
+        
+        await fetchSummary();
+        await fetchRecords(currentPage);
+        updateRefreshTime();
+    } catch (e) {
+        showError("Failed to refresh dashboard.");
+    }
+}
+
+async function fetchDropdownOptions() {
+    const endpoints = [
+        { id: 'municipalityFilter', action: 'municipality-list', defaultText: 'All Municipalities' },
+        { id: 'caseworkerFilter', action: 'caseworker-list', defaultText: 'All Case Workers' },
+        { id: 'validationFilter', action: 'validation-list', defaultText: 'All Statuses' }
+    ];
+    
+    await Promise.all(endpoints.map(async (ep) => {
+        try {
+            const res = await fetch(`${API_BASE}?action=${ep.action}`);
+            if (!res.ok) throw new Error("Failed");
+            const data = await res.json();
+            const sel = document.getElementById(ep.id);
+            if (Array.isArray(data) && data.length > 0) {
+                data.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item;
+                    opt.textContent = item;
+                    sel.appendChild(opt);
+                });
+            }
+        } catch (e) {
+            console.warn(`Dropdown ${ep.id} failed to load:`, e);
+        }
+    }));
+}
+
+async function fetchSummary() {
+    try {
+        const res = await fetch(`${API_BASE}?action=summary`);
+        if (!res.ok) throw new Error("Failed");
+        const data = await res.json();
+
+        document.getElementById('totalRecords').textContent = data.total_records ? data.total_records.toLocaleString() : '0';
+        document.getElementById('validated').textContent = data.validated ? data.validated.toLocaleString() : '0';
+        document.getElementById('notValidated').textContent = data.not_validated ? data.not_validated.toLocaleString() : '0';
+        document.getElementById('encoded').textContent = data.encoded ? data.encoded.toLocaleString() : '0';
+        document.getElementById('notEncoded').textContent = data.not_encoded ? data.not_encoded.toLocaleString() : '0';
+        document.getElementById('encodingRate').textContent = data.encoding_rate !== undefined ? `${data.encoding_rate}%` : '0%';
+
+        renderCharts(data);
+    } catch (error) {
+        showError("Failed to load global summary.");
+    }
+}
+
+function renderCharts(data) {
+    const ctxVal = document.getElementById('validationChart');
+    if (validationChartInstance) validationChartInstance.destroy();
+    validationChartInstance = new Chart(ctxVal, {
+        type: 'doughnut',
+        data: {
+            labels: ['Validated', 'Not Validated'],
+            datasets: [{
+                data: [data.validated || 0, data.not_validated || 0],
+                backgroundColor: ['#3b82f6', '#eab308'],
+                borderWidth: 2, borderColor: '#ffffff'
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    const ctxEnc = document.getElementById('encodingChart');
+    if (encodingChartInstance) encodingChartInstance.destroy();
+    encodingChartInstance = new Chart(ctxEnc, {
+        type: 'doughnut',
+        data: {
+            labels: ['Encoded', 'Not Encoded'],
+            datasets: [{
+                data: [data.encoded || 0, data.not_encoded || 0],
+                backgroundColor: ['#22c55e', '#ef4444'],
+                borderWidth: 2, borderColor: '#ffffff'
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+}
+
+async function fetchRecords(page = 1) {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-500 italic">Loading records...</td></tr>`;
+
+    let url = `${API_BASE}?action=records&page=${page}&limit=50`;
+    if (currentFilters.caseworker) url += `&caseworker=${encodeURIComponent(currentFilters.caseworker)}`;
+    if (currentFilters.municipality) url += `&municipality=${encodeURIComponent(currentFilters.municipality)}`;
+    if (currentFilters.validation) url += `&validation=${encodeURIComponent(currentFilters.validation)}`;
+
+    try {
+        hideError();
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed");
+        const data = await res.json();
+
+        totalPages = data.total_pages || 1;
+        currentPage = data.page || 1;
+        
+        const filteredTotal = data.total_filtered_records !== undefined ? data.total_filtered_records : (data.records ? data.records.length : 0);
+        document.getElementById('recordCount').textContent = `Showing ${filteredTotal.toLocaleString()} filtered records`;
+
+        renderTable(data.records || []);
+        updatePagination();
+
+    } catch (error) {
+        showError("Failed to load table records.");
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">Error loading data.</td></tr>`;
+    }
+}
+
+function renderTable(records) {
+    const tbody = document.getElementById('tableBody');
+    if (!records.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-500">No records found matching criteria.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = records.map(record => {
+        const valStatus = (record.validation || '').trim().toUpperCase();
+        const encStatus = (record.ecms_encoding || '').trim().toUpperCase();
+        
+        let valClass = '';
+        if (valStatus === 'NOT VALIDATED') valClass = 'status-not-validated';
+        else if (valStatus === 'VALIDATED') valClass = 'status-validated';
+
+        let encClass = '';
+        if (encStatus === 'NOT ENCODED') encClass = 'status-not-encoded';
+        else if (encStatus === 'ENCODED') encClass = 'status-encoded';
+
+        return `
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">${record.municipality || 'N/A'}</td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">${record.barangay || 'N/A'}</td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">${record.case_manager || 'N/A'}</td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm ${valClass}">${record.validation || 'N/A'}</td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm ${encClass}">${record.ecms_encoding || 'N/A'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function applyFilters() {
+    currentFilters = {
+        caseworker: document.getElementById('caseworkerFilter').value,
+        municipality: document.getElementById('municipalityFilter').value,
+        validation: document.getElementById('validationFilter').value
+    };
+    fetchRecords(1);
+}
+
+function resetFilters() {
+    document.getElementById('caseworkerFilter').value = '';
+    document.getElementById('municipalityFilter').value = '';
+    document.getElementById('validationFilter').value = '';
+    currentFilters = {};
+    fetchRecords(1);
+}
+
+function updatePagination() {
+    document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+    document.getElementById('prevBtn').disabled = currentPage <= 1;
+    document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+}
+
+function prevPage() { if (currentPage > 1) fetchRecords(currentPage - 1); }
+function nextPage() { if (currentPage < totalPages) fetchRecords(currentPage + 1); }
+
+window.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await fetchDropdownOptions(); 
+        await fetchSummary();         
+        await fetchRecords(1);
+        
+        // Update the timestamp after successful initial load
+        updateRefreshTime();
+    } catch (e) {
+        console.error("Dashboard initialization failed:", e);
+    }
+});
+
+</script>
+</body>
+</html>

@@ -4,15 +4,16 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>NAS Validation Dashboard</title>
+
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* Exact Status Colors */
-.status-encoded { color: #15803d; font-weight: 600; background: #dcfce7; padding: 2px 8px; border-radius: 999px; } 
-.status-not-encoded { color: #b91c1c; font-weight: 600; background: #fee2e2; padding: 2px 8px; border-radius: 999px; } 
-.status-validated { color: #1d4ed8; font-weight: 600; background: #dbeafe; padding: 2px 8px; border-radius: 999px; } 
-.status-not-validated { color: #a16207; font-weight: 600; background: #fef9c3; padding: 2px 8px; border-radius: 999px; } 
-.chart-wrapper { position: relative; height: clamp(180px, 25vh, 220px); width: 100%; } 
+.status-encoded { color: #15803d; font-weight: 600; background: #dcfce7; padding: 2px 8px; border-radius: 999px; }
+.status-not-encoded { color: #b91c1c; font-weight: 600; background: #fee2e2; padding: 2px 8px; border-radius: 999px; }
+.status-validated { color: #1d4ed8; font-weight: 600; background: #dbeafe; padding: 2px 8px; border-radius: 999px; }
+.status-not-validated { color: #a16207; font-weight: 600; background: #fef9c3; padding: 2px 8px; border-radius: 999px; }
+.chart-wrapper { position: relative; height: clamp(180px, 25vh, 220px); width: 100%; }
 
 /* Scrollbar styling for table */
 .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -30,17 +31,19 @@
 .loading-message .flash { display: inline-block; margin-left: 8px; color: #ef4444; animation: flash 1s linear infinite; }
 @keyframes flash { 0% { opacity: 1 } 50% { opacity: 0.15 } 100% { opacity: 1 } }
 .loading-percent { font-weight: 700; color: #0f172a; }
+
+/* Stale-data indicator */
+.stale-data { opacity: 0.45; transition: opacity 0.25s ease; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans text-gray-800 px-4 py-6">
 
     <div class="max-w-7xl mx-auto relative">
 
-        <!-- Loading overlay: centered with blur and percent -->
         <div id="loadingOverlay" class="loading-overlay hidden" aria-hidden="true">
             <div class="loading-backdrop"></div>
             <div class="loading-panel" role="status" aria-live="polite">
-                <div id="loadingMessage" class="loading-message">Please wait, <span class="flash">wag kang atat!</span></div>
+                <div id="loadingMessage" class="loading-message">Maghintay ka, <span class="flash">huwag kang atat!</span></div>
                 <div class="loading-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
                     <div id="loadingIndicator" class="loading-indicator"></div>
                 </div>
@@ -49,16 +52,16 @@
                 </div>
             </div>
         </div>
-        
+
         <header class="mb-6 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">NAS Validation Dashboard</h1>
-                <p class="text-gray-500 mt-1">Operational Tracking & ECMS Encoding Status</p>
+                <p class="text-gray-500 mt-1">Validation Tracking & ECMS Encoding Status</p>
             </div>
-            
+
             <div class="flex flex-col items-start md:items-end">
                 <span id="lastRefresh" class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-                    Last Refresh: --
+                    Last Successful Refresh: --
                 </span>
                 <button onclick="window.refreshDashboard()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-1.5 px-4 rounded text-sm shadow-sm transition flex items-center gap-2">
                     <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -82,7 +85,7 @@
                         <option value="">All Municipalities</option>
                     </select>
                 </div>
-                
+
                 <div class="flex-1 w-full">
                     <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Case Worker</label>
                     <select id="caseworkerFilter" onchange="window.debouncedApplyFilters()" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500">
@@ -95,11 +98,6 @@
                     <select id="targetFilter" onchange="window.debouncedApplyFilters()" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500">
                         <option value="">All Targets</option>
                     </select>
-                </div>
-
-                <div class="flex-1 w-full">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Search</label>
-                    <input id="globalSearch" type="search" placeholder="Search barangay, municipality, case manager" oninput="window.debouncedApplyFilters()" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div class="flex-1 w-full">
@@ -116,7 +114,7 @@
             <div id="filterChips" class="mt-3 px-2 flex flex-wrap gap-2"></div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div id="summaryCards" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
             <div class="bg-white rounded-lg shadow px-4 py-3 border-l-4 border-gray-400">
                 <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Records</h3>
                 <p id="totalRecords" class="text-2xl font-bold text-gray-900 mt-1">...</p>
@@ -143,124 +141,141 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-
-    <!-- LEFT SIDE -->
-    <div class="lg:col-span-8 flex flex-col gap-6">
-
-        <!-- Priority Backlogs -->
-        <div class="bg-white rounded-lg shadow p-5 border border-red-100 relative">
-
-            <h2 id="backlogTitle"
-                class="text-sm font-bold text-red-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd"
-                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                        clip-rule="evenodd">
-                    </path>
-                </svg>
-
-                Priority Backlogs
-
-            </h2>
-
-            <div id="actionAreaContent"
-                class="text-sm text-gray-600">
-
-                <p id="backlogLoading"
-                    class="italic mb-2 text-gray-400">
-                    Loading data...
-                </p>
-
-                <p id="backlogEmpty"
-                    class="text-gray-500 italic hidden">
-                    No backlogs found based on current filters.
-                </p>
-
-                <ul id="backlogList"
-                    class="space-y-2 mt-4 hidden">
-                </ul>
-
-            </div>
-        </div>
-
-        <!-- Validation Progress -->
-        <div class="bg-white rounded-lg shadow p-5">
-
-            <h2 id="valChartTitle"
-                class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
-
-                Validation Progress
-
-            </h2>
-
-            <div class="chart-wrapper relative">
-
-                <div id="validationSkeleton"
-                    class="absolute inset-0 animate-pulse bg-gray-100 rounded-lg">
+        <div id="chartsAndPanels" class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+            <div class="lg:col-span-8 flex flex-col gap-6">
+                <div class="bg-white rounded-lg shadow p-5 border border-red-100 relative">
+                    <h2 id="backlogTitle" class="text-sm font-bold text-red-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        Priority Backlogs
+                    </h2>
+                    <div id="actionAreaContent" class="text-sm text-gray-600">
+                        <p id="backlogLoading" class="italic mb-2 text-gray-400">Loading data...</p>
+                        <p id="backlogEmpty" class="text-gray-500 italic hidden">No backlogs found based on current filters.</p>
+                        <ul id="backlogList" class="space-y-2 mt-4 hidden"></ul>
+                    </div>
                 </div>
 
-                <canvas id="validationChart"></canvas>
-
-            </div>
-
-        </div>
-
-        <!-- Encoding Progress -->
-        <div class="bg-white rounded-lg shadow p-5">
-
-            <h2 id="encChartTitle"
-                class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
-
-                Encoding Progress
-
-            </h2>
-
-            <div class="chart-wrapper relative">
-
-                <div id="encodingSkeleton"
-                    class="absolute inset-0 animate-pulse bg-gray-100 rounded-lg">
+                <div class="bg-white rounded-lg shadow p-5">
+                    <h2 id="valChartTitle" class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">Validation Progress</h2>
+                    <div class="chart-wrapper relative">
+                        <div id="validationSkeleton" class="absolute inset-0 animate-pulse bg-gray-100 rounded-lg"></div>
+                        <canvas id="validationChart"></canvas>
+                    </div>
                 </div>
 
-                <canvas id="encodingChart"></canvas>
-
+                <div class="bg-white rounded-lg shadow p-5">
+                    <h2 id="encChartTitle" class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">Encoding Progress</h2>
+                    <div class="chart-wrapper relative">
+                        <div id="encodingSkeleton" class="absolute inset-0 animate-pulse bg-gray-100 rounded-lg"></div>
+                        <canvas id="encodingChart"></canvas>
+                    </div>
+                </div>
             </div>
 
-        </div>
-
-    </div>
-
-    <!-- RIGHT SIDE -->
-    <div class="lg:col-span-4">
-
-        <div class="bg-white rounded-lg shadow p-5 h-full">
-
-            <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">
-
-                Operational Insights
-
-            </h2>
-
-            <div id="operationalInsights"
-                class="space-y-3 text-sm text-gray-700">
-
-                <div class="animate-pulse text-gray-400">
-                    Analyzing operational data...
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                <div class="bg-white rounded-lg shadow p-5">
+                    <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Operational Insights</h2>
+                    <div id="operationalInsights" class="space-y-3 text-sm text-gray-700">
+                         <div class="animate-pulse text-gray-400">Analyzing operational data...</div>
+                    </div>
                 </div>
 
-            </div>
+                <div class="bg-white rounded-lg shadow p-5">
+                    <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Validation Overview</h2>
+                    <div class="relative h-[220px]">
+                        <canvas id="validationPieChart"></canvas>
+                    </div>
+                </div>
 
+                <div class="bg-white rounded-lg shadow p-5">
+                    <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Encoding Overview</h2>
+                    <div class="relative h-[220px]">
+                        <canvas id="encodingPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
 
-    </div>
+        <div id="staffChartsCard" class="hidden bg-white rounded-lg shadow p-5 mb-6">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                    Staff Progress
+                    <span id="staffChartsContext" class="text-gray-400 normal-case font-normal"></span>
+                </h2>
+                <span id="staffChartsCount" class="text-xs text-gray-500"></span>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Validation Progress</h3>
+                    <div id="staffValidationWrapper" class="relative overflow-y-auto" style="height: 400px;">
+                        <canvas id="staffValidationChart"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Encoding Progress</h3>
+                    <div id="staffEncodingWrapper" class="relative overflow-y-auto" style="height: 400px;">
+                        <canvas id="staffEncodingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <p id="staffChartsEmpty" class="hidden text-sm text-gray-500 italic mt-4">No staff data available for the selected municipality.</p>
+        </div>
 
-</div>
+        <div class="bg-white rounded-lg shadow border border-gray-200 flex flex-col max-h-[600px] mb-8 overflow-hidden">
+            <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+                <span class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Records Table</span>
+                <div class="flex items-center gap-2">
+                    <button id="resetColumnFiltersBtn" onclick="window.resetColumnFilters()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-1.5 px-3 rounded text-xs shadow-sm transition flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        Reset Column Filters
+                    </button>
+                    <button id="exportCsvBtn" onclick="window.exportCSV()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 px-3 rounded text-xs shadow-sm transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        <span id="exportCsvLabel">Export CSV</span>
+                    </button>
+                </div>
+            </div>
 
-        <div class="bg-white rounded-lg shadow border border-gray-200 flex flex-col h-[600px] mb-8">
             <div class="overflow-y-auto overflow-x-auto custom-scrollbar flex-1">
                 <table class="min-w-full divide-y divide-gray-200 relative">
                     <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
+                        <tr class="bg-white">
+                            <th class="px-6 py-2 border-b border-gray-200">
+                                <select id="colFilterMunicipality" onchange="window.applyColumnFilters()" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
+                                    <option value="">All Municipalities</option>
+                                </select>
+                            </th>
+                            <th class="px-6 py-2 border-b border-gray-200">
+                                <select id="colFilterBarangay" onchange="window.applyColumnFilters()" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
+                                    <option value="">All Barangays</option>
+                                </select>
+                            </th>
+                            <th class="px-6 py-2 border-b border-gray-200">
+                                <select id="colFilterCaseManager" onchange="window.applyColumnFilters()" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
+                                    <option value="">All Case Managers</option>
+                                </select>
+                            </th>
+                            <th class="px-6 py-2 border-b border-gray-200">
+                                <select id="colFilterValidation" onchange="window.applyColumnFilters()" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
+                                    <option value="">All</option>
+                                    <option value="VALIDATED">Validated</option>
+                                    <option value="NOT VALIDATED">Not Validated</option>
+                                </select>
+                            </th>
+                            <th class="px-6 py-2 border-b border-gray-200">
+                                <select id="colFilterEncoding" onchange="window.applyColumnFilters()" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
+                                    <option value="">All</option>
+                                    <option value="ENCODED">Encoded</option>
+                                    <option value="NOT ENCODED">Not Encoded</option>
+                                </select>
+                            </th>
+                        </tr>
                         <tr>
                             <th scope="col" class="w-1/4 px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Municipality</th>
                             <th scope="col" class="w-1/4 px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Barangay</th>
@@ -274,24 +289,19 @@
                     </tbody>
                 </table>
             </div>
-            
+
             <div class="bg-gray-50 px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <span id="recordCount" class="text-sm font-medium text-gray-600">
-                    Showing 0 records
-                </span>
-                
+                <span id="recordCount" class="text-sm font-medium text-gray-600">Showing 0 records</span>
                 <div class="flex items-center gap-4">
                     <div class="flex items-center gap-2 border-r border-gray-300 pr-4">
                         <span class="text-sm text-gray-600">Jump to:</span>
                         <input type="number" id="pageJump" min="1" onkeypress="window.handlePageJump(event)" class="border border-gray-300 rounded px-2 py-1 w-16 text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none" placeholder="1">
                     </div>
-
                     <div class="flex items-center gap-3">
                         <button id="prevBtn" onclick="window.prevPage()" disabled class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-1 px-3 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm">Prev</button>
                         <span id="pageInfo" class="text-sm text-gray-600 font-medium w-16 text-center">Page 1</span>
                         <button id="nextBtn" onclick="window.nextPage()" disabled class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-1 px-3 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm">Next</button>
                     </div>
-                    <button id="loadMoreBtn" onclick="loadMoreRecords()" class="ml-4 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-1 px-3 rounded shadow-sm text-sm">Load more</button>
                 </div>
             </div>
         </div>
@@ -299,17 +309,67 @@
     </div>
 
 <script>
-// REPLACE WITH YOUR NEW WEB APP URL
-const API_BASE = 'https://script.google.com/macros/s/AKfycbwD1l_CrGXHriNLchD3fgvEj48_dxkGSJAqL02v2zgEKCrAUOE3UgwfRaRGeEHvt4ch_w/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbz50JwwArjo0OmwOZjDjlYvx81Mgv0EaerN0_VnZGvF2qNBQ8Lt2k5rY9MMbFK1nmRhPg/exec';
 
 let currentPage = 1;
 let totalPages = 1;
 let currentFilters = {};
+let cachedDropdownsData = null;
+
+let columnFilters = {
+    col_municipality: '',
+    col_barangay: '',
+    col_case_manager: '',
+    col_validation: '',
+    col_encoding: ''
+};
+
 let validationChartInstance = null;
 let encodingChartInstance = null;
-let debounceTimer; 
+let validationPieInstance = null;
+let encodingPieInstance = null;
+let staffValidationChartInstance = null;
+let staffEncodingChartInstance = null;
+let debounceTimer;
 let __loadingCount = 0;
 let __loadingPercent = 0;
+let exportInProgress = false;
+
+let activeInitController = null;
+let activeRecordsController = null;
+
+// Core inline percentage label drawing engine plugin for Doughnut charts
+const piePercentageLabelPlugin = {
+    id: 'piePercentageLabelPlugin',
+    afterDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        chart.data.datasets.forEach((dataset, datasetIndex) => {
+            const meta = chart.getDatasetMeta(datasetIndex);
+            if (meta.type !== 'doughnut') return; 
+
+            const total = dataset.data.reduce((sum, val) => sum + val, 0);
+            if (total === 0) return;
+
+            meta.data.forEach((element, index) => {
+                const value = dataset.data[index];
+                const percentage = ((value / total) * 100).toFixed(1) + '%';
+                
+                if (value > 0) {
+                    const { x, y } = element.tooltipPosition();
+                    ctx.fillStyle = '#0f172a'; 
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(percentage, x, y);
+                }
+            });
+        });
+        ctx.restore();
+    }
+};
+
+Chart.register(piePercentageLabelPlugin);
 
 function setLoadingPercent(p) {
     __loadingPercent = Math.max(0, Math.min(100, Math.round(p)));
@@ -323,14 +383,12 @@ function showLoading() {
     __loadingCount = Math.max(0, __loadingCount + 1);
     const el = document.getElementById('loadingOverlay');
     if (el) el.classList.remove('hidden');
-    // start at 3% if not already moving
     if (__loadingPercent === 0) setLoadingPercent(3);
 }
 
 function hideLoading() {
     __loadingCount = Math.max(0, __loadingCount - 1);
     if (__loadingCount > 0) return;
-    // finish to 100% and hide after a short delay
     setLoadingPercent(100);
     setTimeout(() => {
         const el = document.getElementById('loadingOverlay');
@@ -340,27 +398,28 @@ function hideLoading() {
 }
 
 function escapeHTML(str) {
-    if (typeof str !== 'string') return str;
-    return str.replace(/[&<>'"]/g, tag => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-    }[tag]));
+    if (str === null || str === undefined) return '';
+    str = String(str);
+    return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag]));
 }
 
 function showError(msg) {
     document.getElementById('errorBanner').classList.remove('hidden');
     document.getElementById('errorMessage').textContent = msg;
+    document.getElementById('summaryCards')?.classList.add('stale-data');
+    document.getElementById('chartsAndPanels')?.classList.add('stale-data');
 }
+
 function hideError() {
     document.getElementById('errorBanner').classList.add('hidden');
+    document.getElementById('summaryCards')?.classList.remove('stale-data');
+    document.getElementById('chartsAndPanels')?.classList.remove('stale-data');
 }
 
 function updateRefreshTime() {
     const now = new Date();
-    const formatted = now.toLocaleString('en-PH', {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
-    });
-    document.getElementById('lastRefresh').textContent = `Last Refresh: ${formatted}`;
+    const formatted = now.toLocaleString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    document.getElementById('lastRefresh').textContent = `Last Successful Refresh: ${formatted}`;
 }
 
 async function refreshDashboard() {
@@ -372,744 +431,691 @@ async function refreshDashboard() {
     }
 }
 
-// Centralized initializer to orchestrate dropdowns, summary and records
+function normalizeDropdownItem(item) {
+    if (item === null || item === undefined) return null;
+
+    if (typeof item === 'object') {
+        const value = item.value || item.name || item.text || '';
+        const text = item.text || item.name || item.value || '';
+        const municipality = item.municipality || item.muni || '';
+        if (!value) return null;
+        return {
+            value: String(value),
+            text: String(text),
+            municipality: String(municipality)
+        };
+    }
+
+    const stringValue = String(item);
+    return {
+        value: stringValue,
+        text: stringValue,
+        municipality: ''
+    };
+}
+
+function normalizeDropdownItems(items) {
+    if (!Array.isArray(items)) return [];
+    return items
+        .map(normalizeDropdownItem)
+        .filter(Boolean);
+}
+
+function populate(sel, items, defaultLabel, currentValue = '') {
+    sel.innerHTML = '';
+    const d = document.createElement('option');
+    d.value = '';
+    d.textContent = defaultLabel;
+    sel.appendChild(d);
+
+    const normalizedItems = normalizeDropdownItems(items);
+    normalizedItems.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.value;
+        opt.textContent = item.text;
+        if (opt.value === String(currentValue)) {
+            opt.selected = true;
+        }
+        sel.appendChild(opt);
+    });
+}
+
+function updateDropdownOptionsCascade() {
+    if (!cachedDropdownsData) return;
+
+    const muniFilterVal = document.getElementById('municipalityFilter').value;
+    const colMuniFilterVal = document.getElementById('colFilterMunicipality').value;
+    const activeMuniSelection = muniFilterVal || colMuniFilterVal;
+
+    const interstateCW = normalizeDropdownItems(cachedDropdownsData.caseworkers || cachedDropdownsData.case_managers || cachedDropdownsData.caseWorkers || []);
+    const interstateBrgy = normalizeDropdownItems(cachedDropdownsData.barangays || []);
+
+    let filteredCW = interstateCW;
+    if (activeMuniSelection) {
+        filteredCW = interstateCW.filter(worker => {
+            return worker.municipality.toLowerCase() === activeMuniSelection.toLowerCase();
+        });
+    }
+
+    let filteredBrgy = interstateBrgy;
+    if (activeMuniSelection) {
+        filteredBrgy = interstateBrgy.filter(brgy => {
+            return brgy.municipality.toLowerCase() === activeMuniSelection.toLowerCase();
+        });
+    }
+
+    populate(document.getElementById('caseworkerFilter'), filteredCW, 'All Case Workers', currentFilters.caseworker);
+    populate(document.getElementById('colFilterBarangay'), filteredBrgy, 'All Barangays', columnFilters.col_barangay);
+    populate(document.getElementById('colFilterCaseManager'), filteredCW, 'All Case Managers', columnFilters.col_case_manager);
+}
+
+function updateStaffCardVisibility() {
+    const staffCard = document.getElementById('staffChartsCard');
+    if (!staffCard) return;
+    const caseworkerSelected = document.getElementById('caseworkerFilter').value.trim() !== '';
+    staffCard.classList.toggle('hidden', caseworkerSelected);
+}
+
 async function initializeDashboard() {
+    if (activeInitController) {
+        activeInitController.abort();
+    }
+    activeInitController = new AbortController();
+    const signal = activeInitController.signal;
 
     try {
-
         showLoading();
-
-        const qs = serializeFilters(currentFilters);
-
-        // ALWAYS use dashboard-init for now
-        // Stable version muna before optimization
-        const action = 'dashboard-init';
-
-        const res = await fetch(
-            `${API_BASE}?action=${action}${qs}&page=1&limit=50`
-        );
-
-        if (!res.ok) {
-            throw new Error('Init failed');
-        }
-
+        updateStaffCardVisibility();
+        const qs = buildRecordsQueryString();
+        const res = await fetch(`${API_BASE}?action=dashboard-init${qs}&page=1&limit=50`, { signal });
+        
+        if (!res.ok) throw new Error('Initialization failed');
         const data = await res.json();
 
-        // =========================
-        // DROPDOWNS
-        // =========================
         if (data.dropdowns) {
+            cachedDropdownsData = data.dropdowns;
 
-            const muni = document.getElementById('municipalityFilter');
-            const cw = document.getElementById('caseworkerFilter');
-            const tgt = document.getElementById('targetFilter');
-            const val = document.getElementById('validationFilter');
+            populate(document.getElementById('municipalityFilter'), data.dropdowns.municipalities, 'All Municipalities', currentFilters.municipality);
+            populate(document.getElementById('colFilterMunicipality'), data.dropdowns.municipalities, 'All Municipalities', columnFilters.col_municipality);
+            populate(document.getElementById('targetFilter'), data.dropdowns.targets, 'All Targets', currentFilters.target);
+            populate(document.getElementById('validationFilter'), data.dropdowns.validations || ['VALIDATED', 'NOT VALIDATED'], 'All Statuses', currentFilters.validation);
 
-            function populate(sel, items, defaultLabel, currentValue = '') {
-
-                sel.innerHTML = '';
-
-                const d = document.createElement('option');
-                d.value = '';
-                d.textContent = defaultLabel;
-                sel.appendChild(d);
-
-                (items || []).forEach(it => {
-
-                    const o = document.createElement('option');
-                    o.value = it;
-                    o.textContent = it;
-
-                    if (it === currentValue) {
-                        o.selected = true;
-                    }
-
-                    sel.appendChild(o);
-
-                });
-            }
-
-            populate(
-                muni,
-                data.dropdowns.municipalities,
-                'All Municipalities',
-                currentFilters.municipality
-            );
-
-            populate(
-                cw,
-                data.dropdowns.caseworkers,
-                'All Case Workers',
-                currentFilters.caseworker
-            );
-
-            populate(
-                tgt,
-                data.dropdowns.targets,
-                'All Targets',
-                currentFilters.target
-            );
-
-            populate(
-                val,
-                data.dropdowns.validations,
-                'All Statuses',
-                currentFilters.validation
-            );
+            updateDropdownOptionsCascade();
         }
 
-        // =========================
-        // SUMMARY
-        // =========================
         if (data.summary) {
-
-            const s = data.summary;
-
-            document.getElementById('totalRecords').textContent =
-                s.total_records
-                    ? s.total_records.toLocaleString()
-                    : '0';
-
-            document.getElementById('validated').textContent =
-                s.validated
-                    ? s.validated.toLocaleString()
-                    : '0';
-
-            document.getElementById('notValidated').textContent =
-                s.not_validated
-                    ? s.not_validated.toLocaleString()
-                    : '0';
-
-            document.getElementById('encoded').textContent =
-                s.encoded
-                    ? s.encoded.toLocaleString()
-                    : '0';
-
-            document.getElementById('notEncoded').textContent =
-                s.not_encoded
-                    ? s.not_encoded.toLocaleString()
-                    : '0';
-
-            document.getElementById('encodingRate').textContent =
-                s.encoding_rate !== undefined
-                    ? `${s.encoding_rate}%`
-                    : '0%';
-
-            renderCharts(s);
-            renderActionAreas(s);
-            renderOperationalInsights(s);
+            document.getElementById('totalRecords').textContent = (data.summary.total_records || 0).toLocaleString();
+            document.getElementById('validated').textContent = (data.summary.validated || 0).toLocaleString();
+            document.getElementById('notValidated').textContent = (data.summary.not_validated || 0).toLocaleString();
+            document.getElementById('encoded').textContent = (data.summary.encoded || 0).toLocaleString();
+            document.getElementById('notEncoded').textContent = (data.summary.not_encoded || 0).toLocaleString();
+            document.getElementById('encodingRate').textContent = (data.summary.encoding_rate || 0).toFixed(1) + '%';
         }
 
-        // =========================
-        // RECORDS
-        // =========================
+        if (data.priority_backlogs) {
+            renderPriorityBacklogs(data.priority_backlogs);
+        }
+        if (data.insights) {
+            renderOperationalInsights(data.insights);
+        }
+
+        // Run the dynamic visual graphing sequence safely
+        renderCharts(data);
+
+        // Safe table extraction path
+        let tableRecords = [];
         if (data.records) {
-
-            currentPage = data.records.page || 1;
-            totalPages = data.records.total_pages || 1;
-
-            renderTable(data.records.records || []);
-
-            const filteredTotal =
-                data.records.total_filtered_records !== undefined
-                    ? data.records.total_filtered_records
-                    : (data.records.records || []).length;
-
-            const startRec =
-                filteredTotal === 0
-                    ? 0
-                    : ((currentPage - 1) * 50) + 1;
-
-            const endRec =
-                Math.min(currentPage * 50, filteredTotal);
-
-            document.getElementById('recordCount').textContent =
-                `Showing ${startRec}-${endRec} of ${filteredTotal.toLocaleString()} filtered records`;
-
-            updatePagination();
+            tableRecords = Array.isArray(data.records) ? data.records : (data.records.records || []);
         }
 
-        renderFilterChips();
-
-        updateRefreshTime();
+        renderTableRows(tableRecords);
+        
+        const paginationData = data.pagination || (data.records && data.records.pagination) || {};
+        currentPage = paginationData.current_page || 1;
+        totalPages = paginationData.total_pages || 1;
+        
+        document.getElementById('recordCount').textContent = `Showing ${(tableRecords.length || 0).toLocaleString()} of ${(paginationData.total_filtered_records || paginationData.total_records || 0).toLocaleString()} records`;
+        updatePaginationUI();
 
         hideError();
+        updateRefreshTime();
 
     } catch (e) {
-
-        console.error('Initialization failed:', e);
-
-        showError(
-            'Initialization failed. Check console for details.'
-        );
-
-    } finally {
-
-        hideLoading();
-
-    }
-}
-
-async function fetchDropdownOptions() {
-    // ADDED TARGET FILTER ENDPOINT HERE
-    const endpoints = [
-        { id: 'municipalityFilter', action: 'municipality-list' },
-        { id: 'caseworkerFilter', action: 'caseworker-list' },
-        { id: 'targetFilter', action: 'target-list' }, 
-        { id: 'validationFilter', action: 'validation-list' }
-    ];
-
-    showLoading();
-    try {
-        // Fetch sequentially so we can show meaningful progress
-        const total = endpoints.length + 2; // dropdowns + summary + records
-        let done = 0;
-        for (const ep of endpoints) {
-            try {
-                const res = await fetch(`${API_BASE}?action=${ep.action}`);
-                if (!res.ok) throw new Error("Failed");
-                const data = await res.json();
-                const sel = document.getElementById(ep.id);
-                if (Array.isArray(data) && data.length > 0) {
-                    data.forEach(item => {
-                        const opt = document.createElement('option');
-                        opt.value = item;
-                        opt.textContent = item;
-                        sel.appendChild(opt);
-                    });
-                }
-            } catch (e) {
-                console.warn(`Dropdown ${ep.id} failed to load:`, e);
-            }
-            done++;
-            setLoadingPercent((done / total) * 100 * 0.4); // reserve first 40% for dropdowns
+        if (e.name !== 'AbortError') {
+            console.error("Initialization error:", e);
+            showError("Failed to initialize dashboard. Check connection parameters.");
         }
-
-        // after dropdowns, fetch summary and records to continue progress in startup flow
     } finally {
-        // do not hide here; fetchSummary/fetchRecords will hide after completion
-    }
-}
-
-async function fetchCaseworkerOptions(municipality) {
-    const sel = document.getElementById('caseworkerFilter');
-    // reset options
-    sel.innerHTML = '<option value="">All Case Workers</option>';
-    showLoading();
-    try {
-        const query = municipality ? `&municipality=${encodeURIComponent(municipality)}` : '';
-        setLoadingPercent( (40) );
-        const res = await fetch(`${API_BASE}?action=caseworker-list${query}`);
-        if (!res.ok) throw new Error('Failed to load caseworkers');
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-            data.forEach(item => {
-                const opt = document.createElement('option');
-                opt.value = item;
-                opt.textContent = item;
-                sel.appendChild(opt);
-            });
-            // If there's a previously selected caseworker, restore it if present
-            if (currentFilters.caseworker && Array.from(sel.options).some(o => o.value === currentFilters.caseworker)) {
-                sel.value = currentFilters.caseworker;
-            } else {
-                // If there's exactly one available caseworker (excluding the empty default), auto-select it
-                const nonEmptyOptions = Array.from(sel.options).map(o => o.value).filter(v => v && v.trim() !== '');
-                if (nonEmptyOptions.length === 1) {
-                    sel.value = nonEmptyOptions[0];
-                    currentFilters.caseworker = nonEmptyOptions[0];
-                }
-            }
-        }
-    } catch (e) {
-        console.warn('Caseworker dropdown failed to load:', e);
-    } finally {
-        // keep overlay visible; data fetches will advance percent
         hideLoading();
     }
 }
 
-async function fetchSummary() {
-    showLoading();
-    try {
-        setLoadingPercent(45);
-        let url = `${API_BASE}?action=summary`;
-        if (currentFilters.caseworker) url += `&caseworker=${encodeURIComponent(currentFilters.caseworker)}`;
-        if (currentFilters.municipality) url += `&municipality=${encodeURIComponent(currentFilters.municipality)}`;
-        if (currentFilters.target) url += `&target=${encodeURIComponent(currentFilters.target)}`; // ADDED TARGET
-        if (currentFilters.validation) url += `&validation=${encodeURIComponent(currentFilters.validation)}`;
+async function fetchRecordsOnly() {
+    if (activeRecordsController) {
+        activeRecordsController.abort();
+    }
+    activeRecordsController = new AbortController();
+    const signal = activeRecordsController.signal;
 
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Failed");
-        const data = await res.json();
+    try {
+        showLoading();
+        const qs = buildRecordsQueryString();
+        const res = await fetch(`${API_BASE}?action=get-records${qs}&page=${currentPage}&limit=50`, { signal });
         
-        if (!data.success) throw new Error(data.error || "Backend Error");
+        if (!res.ok) throw new Error('Fetch records failed');
+        const data = await res.json();
 
-        document.getElementById('totalRecords').textContent = data.total_records ? data.total_records.toLocaleString() : '0';
-        document.getElementById('validated').textContent = data.validated ? data.validated.toLocaleString() : '0';
-        document.getElementById('notValidated').textContent = data.not_validated ? data.not_validated.toLocaleString() : '0';
-        document.getElementById('encoded').textContent = data.encoded ? data.encoded.toLocaleString() : '0';
-        document.getElementById('notEncoded').textContent = data.not_encoded ? data.not_encoded.toLocaleString() : '0';
-        document.getElementById('encodingRate').textContent = data.encoding_rate !== undefined ? `${data.encoding_rate}%` : '0%';
-
-        renderCharts(data);
-        renderActionAreas(data);
-        setLoadingPercent(70);
-    } catch (error) {
-        showError("Failed to load global summary.");
-        console.error(error);
+        if (data.records) {
+            renderTableRows(data.records);
+            const p = data.pagination || {};
+            totalPages = p.total_pages || 1;
+            document.getElementById('recordCount').textContent = `Showing ${(data.records.length || 0).toLocaleString()} of ${(p.total_filtered_records || 0).toLocaleString()} records`;
+            updatePaginationUI();
+        }
+        hideError();
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            console.error("Records fetch error:", e);
+            showError("Failed to fetch current view records.");
+        }
     } finally {
-        // keep overlay visible; fetchRecords will finish the flow
+        hideLoading();
     }
 }
 
-function renderActionAreas(data) {
-    const listEl = document.getElementById('backlogList');
-    const contentDiv = document.getElementById('actionAreaContent');
-    const titleEl = document.getElementById('backlogTitle');
-    const loadingP = document.getElementById('backlogLoading');
-    const emptyP = document.getElementById('backlogEmpty');
+function buildRecordsQueryString() {
+    const muni = document.getElementById('municipalityFilter').value;
+    const cw = document.getElementById('caseworkerFilter').value;
+    const tgt = document.getElementById('targetFilter').value;
+    const val = document.getElementById('validationFilter').value;
 
-    const isBarangay = currentFilters.municipality || currentFilters.caseworker;
-    const contextText = isBarangay ? 'By Barangay' : 'By Municipality';
-    
-    if (titleEl) {
-        titleEl.innerHTML = `
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-            Priority Backlogs (${contextText})
+    currentFilters = { municipality: muni, caseworker: cw, target: tgt, validation: val };
+
+    let p = `&municipality=${encodeURIComponent(muni)}` +
+            `&caseworker=${encodeURIComponent(cw)}` +
+            `&target=${encodeURIComponent(tgt)}` +
+            `&validation=${encodeURIComponent(val)}`;
+
+    p += `&col_municipality=${encodeURIComponent(columnFilters.col_municipality)}` +
+         `&col_barangay=${encodeURIComponent(columnFilters.col_barangay)}` +
+         `&col_case_manager=${encodeURIComponent(columnFilters.col_case_manager)}` +
+         `&col_validation=${encodeURIComponent(columnFilters.col_validation)}` +
+         `&col_encoding=${encodeURIComponent(columnFilters.col_encoding)}`;
+
+    return p;
+}
+
+function renderTableRows(records) {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+
+    if (!records || records.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-500 italic">No matching records found.</td></tr>`;
+        return;
+    }
+
+    records.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-gray-50 transition";
+
+        const valStatus = String(r.validation || r.validation_status || 'NOT VALIDATED').toUpperCase();
+        const encStatus = String(r.ecms_encoding || r.encoding_status || 'NOT ENCODED').toUpperCase();
+
+        let valClass = "status-not-validated";
+        if (valStatus === 'VALIDATED') valClass = "status-validated";
+
+        let encClass = "status-not-encoded";
+        if (encStatus === 'ENCODED') encClass = "status-encoded";
+
+        tr.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">${escapeHTML(r.municipality || 'N/A')}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(r.barangay || 'N/A')}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(r.case_manager || 'N/A')}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-center"><span class="${valClass}">${escapeHTML(valStatus)}</span></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-center"><span class="${encClass}">${escapeHTML(encStatus)}</span></td>
         `;
-    }
-
-    // Hide the initial "Loading data..." message once we have a render
-    if (loadingP) loadingP.classList.add('hidden');
-
-    const backlogs = data.summary_breakdown || data.top_backlogs || data.top_backlog_muni; 
-
-    if (backlogs && Array.isArray(backlogs) && backlogs.length > 0) {
-        const sortedBacklogs = [...backlogs].sort((a,b) => (b.not_encoded + b.not_validated) - (a.not_encoded + a.not_validated)).slice(0, 5);
-
-        if (listEl) {
-            listEl.innerHTML = sortedBacklogs.map(m => `
-                <li class="flex justify-between items-center border-b border-gray-100 pb-1">
-                    <span class="font-medium text-gray-800">${escapeHTML(m.name)}</span>
-                    <span class="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded text-xs">${(m.not_encoded || m.count || 0)} pending</span>
-                </li>
-            `).join('');
-            listEl.classList.remove('hidden');
-        }
-        if (emptyP) emptyP.classList.add('hidden');
-    } else {
-        if (listEl) {
-            listEl.innerHTML = '';
-            listEl.classList.add('hidden');
-        }
-        if (emptyP) emptyP.classList.remove('hidden');
-    }
+        tbody.appendChild(tr);
+    });
 }
-function renderOperationalInsights(data) {
 
+function renderPriorityBacklogs(list) {
+    document.getElementById('backlogLoading').classList.add('hidden');
+    const emptyEl = document.getElementById('backlogEmpty');
+    const listEl = document.getElementById('backlogList');
+
+    listEl.innerHTML = '';
+    if (!list || list.length === 0) {
+        emptyEl.classList.remove('hidden');
+        listEl.classList.add('hidden');
+        return;
+    }
+
+    emptyEl.classList.add('hidden');
+    listEl.classList.remove('hidden');
+
+    list.forEach(item => {
+        const li = document.createElement('li');
+        li.className = "flex items-center justify-between p-2 rounded bg-red-50 border border-red-100";
+        li.innerHTML = `
+            <span class="font-medium text-gray-900">${escapeHTML(item.name || 'Unknown')}</span>
+            <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">${(item.backlog || 0).toLocaleString()} backlog</span>
+        `;
+        listEl.appendChild(li);
+    });
+}
+
+function renderOperationalInsights(insights) {
     const container = document.getElementById('operationalInsights');
+    container.innerHTML = '';
 
-    if (!container) return;
+    if (!insights || insights.length === 0) {
+        container.innerHTML = `<p class="text-gray-400 italic">No operational data insights for this configuration.</p>`;
+        return;
+    }
 
-    const insights = [];
-
-    const encodingRate = data.encoding_rate || 0;
-
-    const breakdown =
-        data.summary_breakdown || [];
-
-    if (breakdown.length > 0) {
-
-        const sorted =
-            [...breakdown].sort(
-                (a,b) =>
-                (b.not_encoded || 0) -
-                (a.not_encoded || 0)
-            );
-
-        const top = sorted[0];
-
-        if (top) {
-
-            insights.push(
-                `${top.name} has the highest encoding backlog (${top.not_encoded || 0} pending).`
-            );
+    insights.forEach(ins => {
+        const div = document.createElement('div');
+        div.className = "p-3 rounded-lg border text-xs flex flex-col gap-1 shadow-sm";
+        
+        if (ins.type === 'critical') {
+            div.className += " bg-red-50 border-red-200 text-red-900";
+        } else if (ins.type === 'warning') {
+            div.className += " bg-yellow-50 border-yellow-200 text-yellow-900";
+        } else {
+            div.className += " bg-green-50 border-green-200 text-green-900";
         }
-    }
 
-    if (encodingRate < 20) {
-
-        insights.push(
-            `Encoding rate remains critically low at ${encodingRate}%.`
-        );
-    }
-
-    if (
-        data.validated &&
-        data.encoded &&
-        data.validated > data.encoded
-    ) {
-
-        insights.push(
-            `Validated records are increasing faster than encoded records.`
-        );
-    }
-
-    if (data.not_encoded > 1000) {
-
-        insights.push(
-            `Large encoding backlog detected requiring immediate operational support.`
-        );
-    }
-
-    if (insights.length === 0) {
-
-        insights.push(
-            `No major operational bottlenecks detected.`
-        );
-    }
-
-    container.innerHTML =
-        insights.map(
-            i => `
-            <div class="flex gap-2 items-start">
-                <span class="text-red-500 mt-1">•</span>
-                <span>${i}</span>
-            </div>
-        `
-        ).join('');
+        div.innerHTML = `
+            <div class="font-bold uppercase tracking-wider text-[10px] opacity-70">${escapeHTML(ins.title || 'Insight')}</div>
+            <div class="font-medium">${escapeHTML(ins.message || '')}</div>
+        `;
+        container.appendChild(div);
+    });
 }
 
+// FIXED: Cleaned data tracking schema loops to properly align counter contrast with zero execution bugs
 function renderCharts(data) {
-    Chart.defaults.font.family = "'Inter', 'sans-serif'";
-    Chart.defaults.color = '#64748b';
-    const isFiltered = currentFilters.municipality || currentFilters.caseworker;
-    const contextLabel = isFiltered ? '(By Barangay)' : '(By Municipality)';
+    document.getElementById('validationSkeleton')?.classList.add('hidden');
+    document.getElementById('encodingSkeleton')?.classList.add('hidden');
 
-    // Limit chart data to top N items by pending (not_encoded + not_validated)
-    const breakdown = data.summary_breakdown || [];
-    const topN = 10;
-    const sortedByPending = [...breakdown].sort((a, b) => (b.not_encoded + b.not_validated) - (a.not_encoded + a.not_validated));
-    const topBreakdown = sortedByPending.slice(0, topN);
-
-    document.getElementById('valChartTitle').textContent = `Validation Progress ${contextLabel} (Top ${topN})`;
-    document.getElementById('encChartTitle').textContent = `Encoding Progress ${contextLabel} (Top ${topN})`;
-
-    const labels = topBreakdown.length ? topBreakdown.map(item => item.name) : ['No Data'];
-
-    const valPercentData = topBreakdown.length ? topBreakdown.map(item => {
-        const total = (item.validated || 0) + (item.not_validated || 0);
-        return total === 0 ? 0 : ((item.validated / total) * 100).toFixed(1);
-    }) : [0];
-
-    const notValPercentData = topBreakdown.length ? topBreakdown.map(item => {
-        const total = (item.validated || 0) + (item.not_validated || 0);
-        return total === 0 ? 0 : ((item.not_validated / total) * 100).toFixed(1);
-    }) : [0];
-
-    const encPercentData = topBreakdown.length ? topBreakdown.map(item => {
-        const total = (item.encoded || 0) + (item.not_encoded || 0);
-        return total === 0 ? 0 : ((item.encoded / total) * 100).toFixed(1);
-    }) : [0];
-
-    const notEncPercentData = topBreakdown.length ? topBreakdown.map(item => {
-        const total = (item.encoded || 0) + (item.not_encoded || 0);
-        return total === 0 ? 0 : ((item.not_encoded / total) * 100).toFixed(1);
-    }) : [0];
-
-    // -- Validation Chart --
-    const ctxVal = document.getElementById('validationChart');
     if (validationChartInstance) validationChartInstance.destroy();
+    if (encodingChartInstance) encodingChartInstance.destroy();
+    if (validationPieInstance) validationPieInstance.destroy();
+    if (encodingPieInstance) encodingPieInstance.destroy();
+    if (staffValidationChartInstance) staffValidationChartInstance.destroy();
+    if (staffEncodingChartInstance) staffEncodingChartInstance.destroy();
+
+    // Check fallback targets cleanly from core summaries mapping
+    const breakdownList = (data.summary && data.summary.summary_breakdown) || data.summary_breakdown || [];
+    const timelineLabels = breakdownList.map(item => item.name || 'UNKNOWN');
     
+    const validationDataset = breakdownList.map(item => item.validated || 0);
+    const notValidatedDataset = breakdownList.map(item => item.not_validated || 0);
+    
+    const encodingDataset = breakdownList.map(item => item.encoded || 0);
+    const notEncodedDataset = breakdownList.map(item => item.not_encoded || 0);
+
+    // 1. Validation Progress (Counter Contrast Stacked Bar Chart)
+    const ctxVal = document.getElementById('validationChart').getContext('2d');
     validationChartInstance = new Chart(ctxVal, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels: timelineLabels,
             datasets: [
                 {
                     label: 'Validated',
-                    data: valPercentData,
-                    backgroundColor: '#3b82f6',
-                    borderRadius: 2
+                    data: validationDataset,
+                    backgroundColor: '#1d4ed8'
                 },
                 {
-                    label: 'Pending',
-                    data: notValPercentData,
-                    backgroundColor: '#eab308',
-                    borderRadius: 2
+                    label: 'Not Validated',
+                    data: notValidatedDataset,
+                    backgroundColor: '#ffa500' 
                 }
             ]
         },
         options: { 
             responsive: true, 
             maintainAspectRatio: false,
-            plugins: { 
-                legend: { position: 'bottom', labels: { boxWidth: 12 } },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.y + '%';
-                        }
-                    }
-                }
-            },
-            scales: { 
-                x: { stacked: true, grid: { display: false } }, 
-                y: { 
-                    stacked: true, 
-                    max: 100, 
-                    grid: { color: '#f1f5f9' },
-                    ticks: { callback: function(value) { return value + '%' } }
-                } 
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true }
             }
         }
     });
 
-    document.getElementById('validationSkeleton')?.remove();
-    document.getElementById('encodingSkeleton')?.remove();
-
-    // -- Encoding Chart --
-    const ctxEnc = document.getElementById('encodingChart');
-    if (encodingChartInstance) encodingChartInstance.destroy();
-    
+    // 2. Encoding Progress (Counter Contrast Stacked Bar Chart)
+    const ctxEnc = document.getElementById('encodingChart').getContext('2d');
     encodingChartInstance = new Chart(ctxEnc, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels: timelineLabels,
             datasets: [
                 {
                     label: 'Encoded',
-                    data: encPercentData,
-                    backgroundColor: '#22c55e',
-                    borderRadius: 2
+                    data: encodingDataset,
+                    backgroundColor: '#15803d'
                 },
                 {
-                    label: 'Pending',
-                    data: notEncPercentData,
-                    backgroundColor: '#ef4444',
-                    borderRadius: 2
+                    label: 'Not Encoded',
+                    data: notEncodedDataset,
+                    backgroundColor: '#ef4444' 
                 }
             ]
         },
         options: { 
             responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { 
-                legend: { position: 'bottom', labels: { boxWidth: 12 } },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.y + '%';
-                        }
-                    }
-                }
-            },
-            scales: { 
-                x: { stacked: true, grid: { display: false } }, 
-                y: { 
-                    stacked: true, 
-                    max: 100, 
-                    grid: { color: '#f1f5f9' },
-                    ticks: { callback: function(value) { return value + '%' } }
-                } 
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true }
             }
         }
     });
-}
 
-async function fetchRecords(page = 1, append = false) {
-    const tbody = document.getElementById('tableBody');
-    if (!append) tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-500 italic">Loading records...</td></tr>`;
+    const sum = data.summary || { validated: 0, not_validated: 0, encoded: 0, not_encoded: 0 };
+    
+    // 3. Validation Overview Pie (Doughnut) Chart with inside percentages
+    const ctxValPie = document.getElementById('validationPieChart').getContext('2d');
+    validationPieInstance = new Chart(ctxValPie, {
+        type: 'doughnut',
+        data: {
+            labels: ['Validated', 'Not Validated'],
+            datasets: [{
+                data: [sum.validated, sum.not_validated],
+                backgroundColor: ['#1d4ed8', '#ffa500']
+            }]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
 
-    let url = `${API_BASE}?action=records&page=${page}&limit=50`;
-    if (currentFilters.caseworker) url += `&caseworker=${encodeURIComponent(currentFilters.caseworker)}`;
-    if (currentFilters.municipality) url += `&municipality=${encodeURIComponent(currentFilters.municipality)}`;
-    if (currentFilters.target) url += `&target=${encodeURIComponent(currentFilters.target)}`; // ADDED TARGET
-    if (currentFilters.validation) url += `&validation=${encodeURIComponent(currentFilters.validation)}`;
-    if (currentFilters.search) url += `&search=${encodeURIComponent(currentFilters.search)}`;
+    // 4. Encoding Overview Pie (Doughnut) Chart with inside percentages
+    const ctxEncPie = document.getElementById('encodingPieChart').getContext('2d');
+    encodingPieInstance = new Chart(ctxEncPie, {
+        type: 'doughnut',
+        data: {
+            labels: ['Encoded', 'Not Encoded'],
+            datasets: [{
+                data: [sum.encoded, sum.not_encoded],
+                backgroundColor: ['#15803d', '#ef4444']
+            }]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
 
-    showLoading();
-    try {
-        hideError();
-        setLoadingPercent(75);
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Failed");
-        const data = await res.json();
+    const staffCard = document.getElementById('staffChartsCard');
+    if (data.staff_breakdown && data.staff_breakdown.labels && data.staff_breakdown.labels.length > 0) {
+        staffCard.classList.remove('hidden');
+        document.getElementById('staffChartsEmpty').classList.add('hidden');
+        document.getElementById('staffChartsCount').textContent = `${data.staff_breakdown.labels.length} Personnel`;
 
-        totalPages = data.total_pages || 1;
-        currentPage = data.page || 1;
-        
-        const filteredTotal = data.total_filtered_records !== undefined ? data.total_filtered_records : (data.records ? data.records.length : 0);
-        const startRec = filteredTotal === 0 ? 0 : ((currentPage - 1) * 50) + 1;
-        const endRec = Math.min(currentPage * 50, filteredTotal);
-        
-        document.getElementById('recordCount').textContent = `Showing ${startRec}-${endRec} of ${filteredTotal.toLocaleString()} filtered records`;
+        const ctxStaffVal = document.getElementById('staffValidationChart').getContext('2d');
+        staffValidationChartInstance = new Chart(ctxStaffVal, {
+            type: 'bar',
+            data: {
+                labels: data.staff_breakdown.labels,
+                datasets: [
+                    { label: 'Validated', data: data.staff_breakdown.validated, backgroundColor: '#1d4ed8' },
+                    { label: 'Not Validated', data: data.staff_breakdown.not_validated, backgroundColor: '#ffa500' }
+                ]
+            },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+        });
 
-        if (append) renderTableAppend(data.records || []);
-        else renderTable(data.records || []);
-        updatePagination();
-        // final step
-        setLoadingPercent(95);
-
-    } catch (error) {
-        showError("Failed to load table records. Verify network connection.");
-        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">Error loading data.</td></tr>`;
-    } finally {
-        hideLoading();
+        const ctxStaffEnc = document.getElementById('staffEncodingChart').getContext('2d');
+        staffEncodingChartInstance = new Chart(ctxStaffEnc, {
+            type: 'bar',
+            data: {
+                labels: data.staff_breakdown.labels,
+                datasets: [
+                    { label: 'Encoded', data: data.staff_breakdown.encoded, backgroundColor: '#15803d' },
+                    { label: 'Not Encoded', data: data.staff_breakdown.not_encoded, backgroundColor: '#ef4444' }
+                ]
+            },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+        });
+    } else {
+        staffCard.classList.add('hidden');
     }
 }
 
-function renderTable(records) {
-    const tbody = document.getElementById('tableBody');
-    if (!records.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-500">No records found matching criteria.</td></tr>`;
-        return;
+function updatePaginationUI() {
+    document.getElementById('pageInfo').textContent = `Page ${currentPage} / ${totalPages}`;
+    document.getElementById('prevBtn').disabled = (currentPage <= 1);
+    document.getElementById('nextBtn').disabled = (currentPage >= totalPages);
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        fetchRecordsOnly();
     }
-
-    tbody.innerHTML = records.map(record => {
-        const valStatus = (record.validation || '').trim().toUpperCase();
-        const encStatus = (record.ecms_encoding || '').trim().toUpperCase();
-        
-        let valClass = '';
-        if (valStatus === 'NOT VALIDATED') valClass = 'status-not-validated';
-        else if (valStatus === 'VALIDATED') valClass = 'status-validated';
-
-        let encClass = '';
-        if (encStatus === 'NOT ENCODED') encClass = 'status-not-encoded';
-        else if (encStatus === 'ENCODED') encClass = 'status-encoded';
-
-        return `
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-800 font-medium">${escapeHTML(record.municipality) || 'N/A'}</td>
-                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-600">${escapeHTML(record.barangay) || 'N/A'}</td>
-                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-600">${escapeHTML(record.case_manager) || 'N/A'}</td>
-                <td class="px-6 py-3 whitespace-nowrap text-center"><span class="text-xs ${valClass}">${escapeHTML(record.validation) || 'N/A'}</span></td>
-                <td class="px-6 py-3 whitespace-nowrap text-center"><span class="text-xs ${encClass}">${escapeHTML(record.ecms_encoding) || 'N/A'}</span></td>
-            </tr>
-        `;
-    }).join('');
 }
 
-function renderTableAppend(records) {
-    const tbody = document.getElementById('tableBody');
-    if (!records || !records.length) return;
-    const rows = records.map(record => {
-        const valStatus = (record.validation || '').trim().toUpperCase();
-        const encStatus = (record.ecms_encoding || '').trim().toUpperCase();
-        let valClass = '';
-        if (valStatus === 'NOT VALIDATED') valClass = 'status-not-validated';
-        else if (valStatus === 'VALIDATED') valClass = 'status-validated';
-        let encClass = '';
-        if (encStatus === 'NOT ENCODED') encClass = 'status-not-encoded';
-        else if (encStatus === 'ENCODED') encClass = 'status-encoded';
-
-        return `
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-800 font-medium">${escapeHTML(record.municipality) || 'N/A'}</td>
-                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-600">${escapeHTML(record.barangay) || 'N/A'}</td>
-                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-600">${escapeHTML(record.case_manager) || 'N/A'}</td>
-                <td class="px-6 py-3 whitespace-nowrap text-center"><span class="text-xs ${valClass}">${escapeHTML(record.validation) || 'N/A'}</span></td>
-                <td class="px-6 py-3 whitespace-nowrap text-center"><span class="text-xs ${encClass}">${escapeHTML(record.ecms_encoding) || 'N/A'}</span></td>
-            </tr>
-        `;
-    }).join('');
-    tbody.insertAdjacentHTML('beforeend', rows);
-}
-
-function serializeFilters(filters) {
-    if (!filters) return '';
-    const parts = [];
-    for (const k of ['caseworker','municipality','target','validation','search']) {
-        if (filters[k]) parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(filters[k])}`);
+function nextPage() {
+    if (currentPage < totalPages) {
+        currentPage++;
+        fetchRecordsOnly();
     }
-    return parts.length ? '&' + parts.join('&') : '';
 }
 
-function renderFilterChips() {
-    const container = document.getElementById('filterChips');
-    if (!container) return;
-    container.innerHTML = '';
-    const mapping = { municipality: 'Municipality', caseworker: 'Case Worker', target: 'Target', validation: 'Validation', search: 'Search' };
-    for (const key of Object.keys(mapping)) {
-        const val = currentFilters[key];
-        if (val && val.toString().trim() !== '') {
-            const chip = document.createElement('div');
-            chip.className = 'bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm flex items-center gap-2';
-            const inputId = key === 'search' ? 'globalSearch' : `${key}Filter`;
-            chip.innerHTML = `<span class="font-medium">${mapping[key]}:</span> <span class="truncate">${escapeHTML(val)}</span> <button aria-label="Remove" class="ml-2 text-gray-500 hover:text-gray-800" onclick="(function(){ document.getElementById('${inputId}') && (document.getElementById('${inputId}').value=''); currentFilters['${key}']=''; renderFilterChips(); initializeDashboard(); })()">✕</button>`;
-            container.appendChild(chip);
+function handlePageJump(e) {
+    if (e.key === 'Enter') {
+        const val = parseInt(document.getElementById('pageJump').value, 10);
+        if (val && val >= 1 && val <= totalPages) {
+            currentPage = val;
+            fetchRecordsOnly();
+        } else {
+            alert(`Invalid page number. Min: 1, Max: ${totalPages}`);
         }
     }
-}
-
-function loadMoreRecords() {
-    if (currentPage >= totalPages) return;
-    fetchRecords(currentPage + 1, true);
 }
 
 function debouncedApplyFilters() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-        applyFilters();
-    }, 250); 
+        currentPage = 1;
+
+        const muni = document.getElementById('municipalityFilter').value;
+        const cw = document.getElementById('caseworkerFilter').value;
+        const tgt = document.getElementById('targetFilter').value;
+        const val = document.getElementById('validationFilter').value;
+
+        currentFilters = { municipality: muni, caseworker: cw, target: tgt, validation: val };
+
+        const masterMuni = muni;
+        document.getElementById('colFilterMunicipality').value = masterMuni;
+        columnFilters.col_municipality = masterMuni;
+
+        updateDropdownOptionsCascade();
+        updateStaffCardVisibility();
+        initializeDashboard();
+        renderFilterChips();
+    }, 400);
 }
 
-function applyFilters() {
-    // ADDED TARGET FILTER DATA
-    currentFilters = {
-        caseworker: document.getElementById('caseworkerFilter').value,
-        municipality: document.getElementById('municipalityFilter').value,
-        target: document.getElementById('targetFilter').value,
-        validation: document.getElementById('validationFilter').value,
-        search: document.getElementById('globalSearch') ? document.getElementById('globalSearch').value.trim() : ''
-    };
+function applyColumnFilters() {
+    columnFilters.col_municipality = document.getElementById('colFilterMunicipality').value;
+    columnFilters.col_barangay = document.getElementById('colFilterBarangay').value;
+    columnFilters.col_case_manager = document.getElementById('colFilterCaseManager').value;
+    columnFilters.col_validation = document.getElementById('colFilterValidation').value;
+    columnFilters.col_encoding = document.getElementById('colFilterEncoding').value;
 
-    // Re-run centralized initializer which will refresh dropdowns, summary and records via dashboard-init
-    initializeDashboard();
+    const currentMasterMuni = document.getElementById('municipalityFilter').value;
+    if (columnFilters.col_municipality !== currentMasterMuni) {
+        document.getElementById('municipalityFilter').value = columnFilters.col_municipality;
+        currentFilters.municipality = columnFilters.col_municipality;
+        
+        updateDropdownOptionsCascade();
+    }
+
+    currentPage = 1;
+    fetchRecordsOnly();
+}
+
+function resetColumnFilters() {
+    columnFilters = { col_municipality: '', col_barangay: '', col_case_manager: '', col_validation: '', col_encoding: '' };
+    document.getElementById('colFilterMunicipality').value = '';
+    document.getElementById('colFilterBarangay').value = '';
+    document.getElementById('colFilterCaseManager').value = '';
+    document.getElementById('colFilterValidation').value = '';
+    document.getElementById('colFilterEncoding').value = '';
+
+    document.getElementById('municipalityFilter').value = '';
+    currentFilters.municipality = '';
+    updateDropdownOptionsCascade();
+    renderFilterChips();
+
+    currentPage = 1;
+    fetchRecordsOnly();
 }
 
 function resetFilters() {
-    document.getElementById('caseworkerFilter').value = '';
     document.getElementById('municipalityFilter').value = '';
-    document.getElementById('targetFilter').value = ''; // RESET TARGET
+    document.getElementById('caseworkerFilter').value = '';
+    document.getElementById('targetFilter').value = '';
     document.getElementById('validationFilter').value = '';
-    if (document.getElementById('globalSearch')) document.getElementById('globalSearch').value = '';
-    currentFilters = {};
+    currentFilters = { municipality: '', caseworker: '', target: '', validation: '' };
+    
+    columnFilters = { col_municipality: '', col_barangay: '', col_case_manager: '', col_validation: '', col_encoding: '' };
+    document.getElementById('colFilterMunicipality').value = '';
+    document.getElementById('colFilterBarangay').value = '';
+    document.getElementById('colFilterCaseManager').value = '';
+    document.getElementById('colFilterValidation').value = '';
+    document.getElementById('colFilterEncoding').value = '';
+
+    currentPage = 1;
+    updateDropdownOptionsCascade();
+    updateStaffCardVisibility();
     initializeDashboard();
+    renderFilterChips();
 }
 
-function updatePagination() {
-    document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
-    document.getElementById('pageJump').max = totalPages;
-    document.getElementById('pageJump').value = currentPage;
-    document.getElementById('prevBtn').disabled = currentPage <= 1;
-    document.getElementById('nextBtn').disabled = currentPage >= totalPages;
-    const loadBtn = document.getElementById('loadMoreBtn');
-    if (loadBtn) loadBtn.disabled = currentPage >= totalPages;
-}
-
-function prevPage() { if (currentPage > 1) fetchRecords(currentPage - 1); }
-function nextPage() { if (currentPage < totalPages) fetchRecords(currentPage + 1); }
-
-function handlePageJump(event) {
-    if (event.key === 'Enter') {
-        let targetPage = parseInt(event.target.value);
-        if (targetPage >= 1 && targetPage <= totalPages) {
-            fetchRecords(targetPage);
-        } else {
-            event.target.value = currentPage;
-        }
+function renderFilterChips() {
+    const container = document.getElementById('filterChips');
+    container.innerHTML = '';
+    
+    const chipStyle = "bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm";
+    
+    if (currentFilters.municipality) {
+        container.innerHTML += `<span class="${chipStyle}">Muni: ${escapeHTML(currentFilters.municipality)}</span>`;
+    }
+    if (currentFilters.caseworker) {
+        container.innerHTML += `<span class="${chipStyle}">Worker: ${escapeHTML(currentFilters.caseworker)}</span>`;
+    }
+    if (currentFilters.target) {
+        container.innerHTML += `<span class="${chipStyle}">Target: ${escapeHTML(currentFilters.target)}</span>`;
+    }
+    if (currentFilters.validation) {
+        container.innerHTML += `<span class="${chipStyle}">Status: ${escapeHTML(currentFilters.validation)}</span>`;
     }
 }
 
-// Global scope bindings
+function recordsToCSV(records) {
+    if (!records || records.length === 0) return '';
+    const headers = ['Municipality', 'Barangay', 'Case Manager', 'Validation Status', 'Encoding Status'];
+    const rows = records.map(r => [
+        r.municipality || '',
+        r.barangay || '',
+        r.case_manager || '',
+        r.validation || r.validation_status || '',
+        r.ecms_encoding || r.encoding_status || ''
+    ].map(val => {
+        let txt = String(val).replace(/"/g, '""');
+        return txt.includes(',') || txt.includes('\n') || txt.includes('"') ? `"${txt}"` : txt;
+    }).join(','));
+    return [headers.join(','), ...rows].join('\n');
+}
+
+function triggerCSVDownload(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function setExportButtonState(isExporting) {
+    const btn = document.getElementById('exportCsvBtn');
+    const label = document.getElementById('exportCsvLabel');
+    if (!btn) return;
+    btn.disabled = isExporting;
+    label.textContent = isExporting ? 'Exporting...' : 'Export CSV';
+}
+
+async function exportCSV() {
+    if (exportInProgress) return;
+    exportInProgress = true;
+    setExportButtonState(true);
+
+    try {
+        showLoading();
+        let allRecords = [];
+        let page = 1;
+        let totalPagesFromServer = 1;
+        const qs = buildRecordsQueryString();
+
+        do {
+            setLoadingPercent((page / Math.min(totalPagesFromServer, 40)) * 90);
+            const res = await fetch(`${API_BASE}?action=get-records${qs}&page=${page}&limit=100`);
+            if (!res.ok) throw new Error(`Export fetch failure at page ${page}`);
+            
+            const data = await res.json();
+            if (data.records && data.records.length > 0) {
+                allRecords = allRecords.concat(data.records);
+            }
+            
+            totalPagesFromServer = (data.pagination && data.pagination.total_pages) || 1;
+            if (!data.records || data.records.length === 0) break;
+            if (page >= totalPagesFromServer) break;
+            page++;
+        } while (page <= 40);
+
+        if (allRecords.length === 0) {
+            showError('No records to export with the current filters.');
+            return;
+        }
+
+        const csv = recordsToCSV(allRecords);
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        triggerCSVDownload(csv, `nas-validation-export-${ts}.csv`);
+        hideError();
+
+    } catch (e) {
+        console.error('CSV export failed:', e);
+        showError('CSV export failed. See log files.');
+    } finally {
+        exportInProgress = false;
+        setExportButtonState(false);
+        hideLoading();
+    }
+}
+
 window.refreshDashboard = refreshDashboard;
 window.debouncedApplyFilters = debouncedApplyFilters;
 window.resetFilters = resetFilters;
 window.prevPage = prevPage;
 window.nextPage = nextPage;
 window.handlePageJump = handlePageJump;
+window.applyColumnFilters = applyColumnFilters;
+window.resetColumnFilters = resetColumnFilters;
+window.exportCSV = exportCSV;
 
 window.addEventListener('DOMContentLoaded', async () => {
     try {

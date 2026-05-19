@@ -776,7 +776,7 @@ function debouncedApplyFilters() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
         applyFilters();
-    }, 250); 
+    }, 1000); 
 }
 
 function applyFilters() {

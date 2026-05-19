@@ -20,20 +20,16 @@
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-.loading-overlay {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 60;
-    pointer-events: auto;
-    background: rgba(15,23,42,0.18);
-}
-
-.loading-backdrop {
-    display: none;
-}
+/* Loading overlay */
+.loading-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 60; pointer-events: auto; backdrop-filter: blur(4px); }
+.loading-backdrop { position: absolute; inset: 0; background: rgba(15,23,42,0.35); }
+.loading-panel { position: relative; z-index: 61; width: 520px; max-width: calc(100% - 48px); background: rgba(255,255,255,0.95); border-radius: 12px; padding: 16px 20px; box-shadow: 0 10px 30px rgba(2,6,23,0.2); display:flex; flex-direction:column; gap:10px; align-items:center; }
+.loading-bar { position: relative; width: 100%; height: 10px; background: rgba(2,6,23,0.06); border-radius: 999px; overflow: hidden; }
+.loading-indicator { position: absolute; left: 0; top: 0; height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #38bdf8); transition: width 300ms linear; }
+.loading-message { font-size: 1rem; font-weight: 700; color: #0f172a; }
+.loading-message .flash { display: inline-block; margin-left: 8px; color: #ef4444; animation: flash 1s linear infinite; }
+@keyframes flash { 0% { opacity: 1 } 50% { opacity: 0.15 } 100% { opacity: 1 } }
+.loading-percent { font-weight: 700; color: #0f172a; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans text-gray-800 px-4 py-6">
@@ -548,10 +544,7 @@ function renderCharts(data) {
 
     // -- Validation Chart --
     const ctxVal = document.getElementById('validationChart');
-    if (validationChartInstance) validationChartInstance.data.labels = labels;
-    validationChartInstance.data.datasets[0].data = valPercentData;
-    validationChartInstance.data.datasets[1].data = notValPercentData;
-    validationChartInstance.update();
+    if (validationChartInstance) validationChartInstance.destroy();
     
     validationChartInstance = new Chart(ctxVal, {
         type: 'bar',

@@ -112,9 +112,8 @@
                 <div class="flex gap-2 w-full md:w-auto">
                     <button onclick="window.resetFilters()" class="flex-1 md:flex-none bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-800 font-semibold py-2 px-6 rounded text-sm shadow-sm transition">Clear Filters</button>
                 </div>
-                </div>
-                <div id="filterChips" class="mt-3 px-2 flex flex-wrap gap-2"></div>
             </div>
+            <div id="filterChips" class="mt-3 px-2 flex flex-wrap gap-2"></div>
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
@@ -145,34 +144,118 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-            
-            <div class="lg:col-span-5 bg-white rounded-lg shadow p-5 border border-red-100 relative">
-                <h2 id="backlogTitle" class="text-sm font-bold text-red-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-                    Priority Backlogs
-                </h2>
-                <div id="actionAreaContent" class="text-sm text-gray-600">
-                    <p class="italic mb-2 text-gray-400">Loading data...</p>
-                    <ul id="backlogList" class="space-y-2 mt-4 hidden">
-                        </ul>
-                </div>
-            </div>
 
-            <div class="lg:col-span-3 bg-white rounded-lg shadow p-5">
-                <h2 id="valChartTitle" class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">Validation Progress</h2>
-                <div class="chart-wrapper relative">
-                    <div id="validationSkeleton" class="absolute inset-0 animate-pulse bg-gray-100 rounded-lg"></div>
-                    <canvas id="validationChart"></canvas>
-                </div>
-            </div>
-            <div class="lg:col-span-4 bg-white rounded-lg shadow p-5">
-                <h2 id="encChartTitle" class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">Encoding Progress</h2>
-                <div class="chart-wrapper relative">
-                    <div id="encodingSkeleton" class="absolute inset-0 animate-pulse bg-gray-100 rounded-lg"></div>
-                    <canvas id="encodingChart"></canvas>
-                </div>
+    <!-- LEFT SIDE -->
+    <div class="lg:col-span-8 flex flex-col gap-6">
+
+        <!-- Priority Backlogs -->
+        <div class="bg-white rounded-lg shadow p-5 border border-red-100 relative">
+
+            <h2 id="backlogTitle"
+                class="text-sm font-bold text-red-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clip-rule="evenodd">
+                    </path>
+                </svg>
+
+                Priority Backlogs
+
+            </h2>
+
+            <div id="actionAreaContent"
+                class="text-sm text-gray-600">
+
+                <p id="backlogLoading"
+                    class="italic mb-2 text-gray-400">
+                    Loading data...
+                </p>
+
+                <p id="backlogEmpty"
+                    class="text-gray-500 italic hidden">
+                    No backlogs found based on current filters.
+                </p>
+
+                <ul id="backlogList"
+                    class="space-y-2 mt-4 hidden">
+                </ul>
+
             </div>
         </div>
+
+        <!-- Validation Progress -->
+        <div class="bg-white rounded-lg shadow p-5">
+
+            <h2 id="valChartTitle"
+                class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+
+                Validation Progress
+
+            </h2>
+
+            <div class="chart-wrapper relative">
+
+                <div id="validationSkeleton"
+                    class="absolute inset-0 animate-pulse bg-gray-100 rounded-lg">
+                </div>
+
+                <canvas id="validationChart"></canvas>
+
+            </div>
+
+        </div>
+
+        <!-- Encoding Progress -->
+        <div class="bg-white rounded-lg shadow p-5">
+
+            <h2 id="encChartTitle"
+                class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+
+                Encoding Progress
+
+            </h2>
+
+            <div class="chart-wrapper relative">
+
+                <div id="encodingSkeleton"
+                    class="absolute inset-0 animate-pulse bg-gray-100 rounded-lg">
+                </div>
+
+                <canvas id="encodingChart"></canvas>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="lg:col-span-4">
+
+        <div class="bg-white rounded-lg shadow p-5 h-full">
+
+            <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">
+
+                Operational Insights
+
+            </h2>
+
+            <div id="operationalInsights"
+                class="space-y-3 text-sm text-gray-700">
+
+                <div class="animate-pulse text-gray-400">
+                    Analyzing operational data...
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
         <div class="bg-white rounded-lg shadow border border-gray-200 flex flex-col h-[600px] mb-8">
             <div class="overflow-y-auto overflow-x-auto custom-scrollbar flex-1">
@@ -291,68 +374,179 @@ async function refreshDashboard() {
 
 // Centralized initializer to orchestrate dropdowns, summary and records
 async function initializeDashboard() {
+
     try {
+
         showLoading();
-        // Use aggregated endpoint to reduce round trips
+
         const qs = serializeFilters(currentFilters);
-        // Check if dropdowns are already populated (length > 1 because of the 'All' option)
-        const dropdownsPopulated = document.getElementById('municipalityFilter').options.length > 1;
 
-        // If already populated, call a lighter action (e.g., 'records' or 'summary') 
-        // instead of the heavy 'dashboard-init'
-        const action = dropdownsPopulated ? 'records' : 'dashboard-init';
+        // ALWAYS use dashboard-init for now
+        // Stable version muna before optimization
+        const action = 'dashboard-init';
 
-        const res = await fetch(`${API_BASE}?action=${action}${qs}&page=1&limit=50`);
-        if (!res.ok) throw new Error('Init failed');
+        const res = await fetch(
+            `${API_BASE}?action=${action}${qs}&page=1&limit=50`
+        );
+
+        if (!res.ok) {
+            throw new Error('Init failed');
+        }
+
         const data = await res.json();
 
-        // Populate dropdowns (replace existing options)
+        // =========================
+        // DROPDOWNS
+        // =========================
         if (data.dropdowns) {
+
             const muni = document.getElementById('municipalityFilter');
             const cw = document.getElementById('caseworkerFilter');
             const tgt = document.getElementById('targetFilter');
             const val = document.getElementById('validationFilter');
 
-            function populate(sel, items, defaultLabel) {
+            function populate(sel, items, defaultLabel, currentValue = '') {
+
                 sel.innerHTML = '';
-                const d = document.createElement('option'); d.value = ''; d.textContent = defaultLabel; sel.appendChild(d);
-                (items || []).forEach(it => { const o = document.createElement('option'); o.value = it; o.textContent = it; sel.appendChild(o); });
+
+                const d = document.createElement('option');
+                d.value = '';
+                d.textContent = defaultLabel;
+                sel.appendChild(d);
+
+                (items || []).forEach(it => {
+
+                    const o = document.createElement('option');
+                    o.value = it;
+                    o.textContent = it;
+
+                    if (it === currentValue) {
+                        o.selected = true;
+                    }
+
+                    sel.appendChild(o);
+
+                });
             }
 
-            populate(muni, data.dropdowns.municipalities, 'All Municipalities');
-            populate(cw, data.dropdowns.caseworkers, 'All Case Workers');
-            populate(tgt, data.dropdowns.targets, 'All Targets');
-            populate(val, data.dropdowns.validations, 'All Statuses');
+            populate(
+                muni,
+                data.dropdowns.municipalities,
+                'All Municipalities',
+                currentFilters.municipality
+            );
+
+            populate(
+                cw,
+                data.dropdowns.caseworkers,
+                'All Case Workers',
+                currentFilters.caseworker
+            );
+
+            populate(
+                tgt,
+                data.dropdowns.targets,
+                'All Targets',
+                currentFilters.target
+            );
+
+            populate(
+                val,
+                data.dropdowns.validations,
+                'All Statuses',
+                currentFilters.validation
+            );
         }
 
-        // Summary
+        // =========================
+        // SUMMARY
+        // =========================
         if (data.summary) {
+
             const s = data.summary;
-            document.getElementById('totalRecords').textContent = s.total_records ? s.total_records.toLocaleString() : '0';
-            document.getElementById('validated').textContent = s.validated ? s.validated.toLocaleString() : '0';
-            document.getElementById('notValidated').textContent = s.not_validated ? s.not_validated.toLocaleString() : '0';
-            document.getElementById('encoded').textContent = s.encoded ? s.encoded.toLocaleString() : '0';
-            document.getElementById('notEncoded').textContent = s.not_encoded ? s.not_encoded.toLocaleString() : '0';
-            document.getElementById('encodingRate').textContent = s.encoding_rate !== undefined ? `${s.encoding_rate}%` : '0%';
+
+            document.getElementById('totalRecords').textContent =
+                s.total_records
+                    ? s.total_records.toLocaleString()
+                    : '0';
+
+            document.getElementById('validated').textContent =
+                s.validated
+                    ? s.validated.toLocaleString()
+                    : '0';
+
+            document.getElementById('notValidated').textContent =
+                s.not_validated
+                    ? s.not_validated.toLocaleString()
+                    : '0';
+
+            document.getElementById('encoded').textContent =
+                s.encoded
+                    ? s.encoded.toLocaleString()
+                    : '0';
+
+            document.getElementById('notEncoded').textContent =
+                s.not_encoded
+                    ? s.not_encoded.toLocaleString()
+                    : '0';
+
+            document.getElementById('encodingRate').textContent =
+                s.encoding_rate !== undefined
+                    ? `${s.encoding_rate}%`
+                    : '0%';
+
             renderCharts(s);
             renderActionAreas(s);
+            renderOperationalInsights(s);
         }
 
-        // Records
+        // =========================
+        // RECORDS
+        // =========================
         if (data.records) {
+
             currentPage = data.records.page || 1;
             totalPages = data.records.total_pages || 1;
+
             renderTable(data.records.records || []);
+
+            const filteredTotal =
+                data.records.total_filtered_records !== undefined
+                    ? data.records.total_filtered_records
+                    : (data.records.records || []).length;
+
+            const startRec =
+                filteredTotal === 0
+                    ? 0
+                    : ((currentPage - 1) * 50) + 1;
+
+            const endRec =
+                Math.min(currentPage * 50, filteredTotal);
+
+            document.getElementById('recordCount').textContent =
+                `Showing ${startRec}-${endRec} of ${filteredTotal.toLocaleString()} filtered records`;
+
             updatePagination();
         }
 
         renderFilterChips();
+
         updateRefreshTime();
+
+        hideError();
+
     } catch (e) {
+
         console.error('Initialization failed:', e);
-        showError('Initialization failed. Check console for details.');
+
+        showError(
+            'Initialization failed. Check console for details.'
+        );
+
     } finally {
+
         hideLoading();
+
     }
 }
 
@@ -473,6 +667,8 @@ function renderActionAreas(data) {
     const listEl = document.getElementById('backlogList');
     const contentDiv = document.getElementById('actionAreaContent');
     const titleEl = document.getElementById('backlogTitle');
+    const loadingP = document.getElementById('backlogLoading');
+    const emptyP = document.getElementById('backlogEmpty');
 
     const isBarangay = currentFilters.municipality || currentFilters.caseworker;
     const contextText = isBarangay ? 'By Barangay' : 'By Municipality';
@@ -484,25 +680,105 @@ function renderActionAreas(data) {
         `;
     }
 
+    // Hide the initial "Loading data..." message once we have a render
+    if (loadingP) loadingP.classList.add('hidden');
+
     const backlogs = data.summary_breakdown || data.top_backlogs || data.top_backlog_muni; 
 
     if (backlogs && Array.isArray(backlogs) && backlogs.length > 0) {
         const sortedBacklogs = [...backlogs].sort((a,b) => (b.not_encoded + b.not_validated) - (a.not_encoded + a.not_validated)).slice(0, 5);
 
-        listEl.innerHTML = sortedBacklogs.map(m => `
-            <li class="flex justify-between items-center border-b border-gray-100 pb-1">
-                <span class="font-medium text-gray-800">${escapeHTML(m.name)}</span>
-                <span class="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded text-xs">${(m.not_encoded || m.count || 0)} pending</span>
-            </li>
-        `).join('');
-        listEl.classList.remove('hidden');
-        
-        const p = contentDiv.querySelector('p');
-        if (p) p.classList.add('hidden');
+        if (listEl) {
+            listEl.innerHTML = sortedBacklogs.map(m => `
+                <li class="flex justify-between items-center border-b border-gray-100 pb-1">
+                    <span class="font-medium text-gray-800">${escapeHTML(m.name)}</span>
+                    <span class="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded text-xs">${(m.not_encoded || m.count || 0)} pending</span>
+                </li>
+            `).join('');
+            listEl.classList.remove('hidden');
+        }
+        if (emptyP) emptyP.classList.add('hidden');
     } else {
-        contentDiv.innerHTML = '<p class="text-gray-500 italic">No backlogs found based on current filters.</p>';
-        listEl.classList.add('hidden');
+        if (listEl) {
+            listEl.innerHTML = '';
+            listEl.classList.add('hidden');
+        }
+        if (emptyP) emptyP.classList.remove('hidden');
     }
+}
+function renderOperationalInsights(data) {
+
+    const container = document.getElementById('operationalInsights');
+
+    if (!container) return;
+
+    const insights = [];
+
+    const encodingRate = data.encoding_rate || 0;
+
+    const breakdown =
+        data.summary_breakdown || [];
+
+    if (breakdown.length > 0) {
+
+        const sorted =
+            [...breakdown].sort(
+                (a,b) =>
+                (b.not_encoded || 0) -
+                (a.not_encoded || 0)
+            );
+
+        const top = sorted[0];
+
+        if (top) {
+
+            insights.push(
+                `${top.name} has the highest encoding backlog (${top.not_encoded || 0} pending).`
+            );
+        }
+    }
+
+    if (encodingRate < 20) {
+
+        insights.push(
+            `Encoding rate remains critically low at ${encodingRate}%.`
+        );
+    }
+
+    if (
+        data.validated &&
+        data.encoded &&
+        data.validated > data.encoded
+    ) {
+
+        insights.push(
+            `Validated records are increasing faster than encoded records.`
+        );
+    }
+
+    if (data.not_encoded > 1000) {
+
+        insights.push(
+            `Large encoding backlog detected requiring immediate operational support.`
+        );
+    }
+
+    if (insights.length === 0) {
+
+        insights.push(
+            `No major operational bottlenecks detected.`
+        );
+    }
+
+    container.innerHTML =
+        insights.map(
+            i => `
+            <div class="flex gap-2 items-start">
+                <span class="text-red-500 mt-1">•</span>
+                <span>${i}</span>
+            </div>
+        `
+        ).join('');
 }
 
 function renderCharts(data) {
@@ -776,7 +1052,7 @@ function debouncedApplyFilters() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
         applyFilters();
-    }, 1000); 
+    }, 250); 
 }
 
 function applyFilters() {

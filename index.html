@@ -295,7 +295,14 @@ async function initializeDashboard() {
         showLoading();
         // Use aggregated endpoint to reduce round trips
         const qs = serializeFilters(currentFilters);
-        const res = await fetch(`${API_BASE}?action=dashboard-init${qs}&page=1&limit=50`);
+        // Check if dropdowns are already populated (length > 1 because of the 'All' option)
+        const dropdownsPopulated = document.getElementById('municipalityFilter').options.length > 1;
+
+        // If already populated, call a lighter action (e.g., 'records' or 'summary') 
+        // instead of the heavy 'dashboard-init'
+        const action = dropdownsPopulated ? 'records' : 'dashboard-init';
+
+        const res = await fetch(`${API_BASE}?action=${action}${qs}&page=1&limit=50`);
         if (!res.ok) throw new Error('Init failed');
         const data = await res.json();
 
